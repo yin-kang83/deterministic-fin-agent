@@ -126,9 +126,7 @@ class Chain:
             return False, len(self._blocks) - 1, "末块哈希与外部锚点不符"
         return True, None, f"{len(self._blocks)} 块完整"
 
-    def tamper_for_test(self, i: int, key: str, val: Any) -> None:
-        """仅供自检：模拟攻击者直接改内部数据。"""
-        self._blocks[i]["payload"][key] = val
+
 
 
 def _selftest() -> int:
@@ -163,7 +161,7 @@ def _selftest() -> int:
     chk("三块链完整", okv and pos is None, (okv, pos, msg))
 
     # ③ 篡改中间块 ⇒ 必须被发现，且定位到第 1 块
-    c.tamper_for_test(1, "金额", Money("9999.00"))
+    c._blocks[1]["payload"]["金额"] = Money("9999.00")   # 测试直接改内部：不在生产类上开后门
     okv2, pos2, msg2 = c.verify()
     chk("篡改后验链失败", okv2 is False, (okv2, msg2))
     chk("断链定位到第 1 块", pos2 == 1, pos2)

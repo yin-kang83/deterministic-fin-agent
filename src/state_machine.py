@@ -153,7 +153,7 @@ def _selftest() -> int:
         Entry("库存商品", "借", "100.00"), Entry("银行存款", "贷", "100.00")]).平账().存证(c)
     okv, pos, _ = c.verify()
     chk("存证后链完整", okv and pos is None, (okv, pos, _))
-    c.tamper_for_test(0, "ε", "1.00")
+    c._blocks[0]["payload"]["ε"] = "1.00"   # 测试直接改内部
     okv2, pos2, _ = c.verify()
     chk("篡改 ε 被发现", okv2 is False and pos2 == 0, (okv2, pos2))
 
