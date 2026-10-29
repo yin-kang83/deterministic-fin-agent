@@ -115,6 +115,35 @@ def choose_form(a0, i_seq, c_seq) -> str:
 
 
 def discount_large_n(i, n: int) -> Decimal:
+    """v^n = 1/(1+i)^n。Decimal 的幂运算在 prec 内精确，无需 exp/log 近似。"""
+    return ONE / (ONE + _d(i)) ** n
+
+
+def choose_form(a0, i_seq, c_seq) -> str:
+    """形式选择规则（把"什么时候用哪个"写成可判定的）。
+
+    规则（两条，按顺序）：
+      ① **结果量级远小于中间量，或结果可能接近 0** ⇒ 用「递推」
+         例：每期支付恰好吃掉本息、末期残差归零、摊销表最后一期。
+         闭式要先算 A_0·Π 这个巨数，再减去同样巨大的 ΣC，
+         结果的有效位完全来自两个巨数的差 —— 精度不够就失真。
+      ② 否则 ⇒ 用「闭式通解」，但它只用于**交叉核对**，主计算一律走递推。
+
+    一句话：**相近（差额小）的时候赢递推。**
+    """
+    ii = [_d(x) for x in i_seq]
+    cc = [_d(x) for x in c_seq]
+    prod = ONE
+    for x in ii:
+        prod *= (ONE + x)
+    middle = abs(_d(a0) * prod)                     # 中间量量级
+    approx = abs(horner(a0, ii, cc))                # 结果量级（用最稳的形式估）
+    if middle == Z:
+        return "递推"
+    return "递推" if approx < middle / (Decimal(10) ** 6) else "闭式"
+
+
+def discount_large_n(i, n: int) -> Decimal:
     """v^n，大 n 时用 exp(−n·ln(1+i))，避免连乘累积误差。"""
     ii = _d(i)
     expo = (-_d(n)) * (ii.ln())

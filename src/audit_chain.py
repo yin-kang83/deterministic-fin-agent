@@ -90,8 +90,29 @@ class Chain:
     def __len__(self) -> int:
         return len(self._blocks)
 
-    def verify(self) -> tuple[bool, int | None, str]:
-        """验链。返回 (是否完整, 首个断链位置, 原因)。"""
+    def anchor(self) -> dict:
+        """链外锚点：块数与末块哈希。必须**登记到链外**（日志/邮件/另一系统）。
+
+        为什么需要它
+          链内一致性只能发现「改」，**发现不了「删」**——
+          删掉最后一块后，剩下的链依然自洽（实测：3 块删 1 块，verify() 仍返回 True）。
+          而「删掉一笔不利的底稿」正是最常见的掩盖手段。
+          要发现删除，只能靠外部记住「原来有几块、末块哈希是多少」。
+        """
+        return {"块数": len(self._blocks),
+                "末块哈希": self._blocks[-1]["hash"] if self._blocks else GENESIS}
+
+    def verify(self, expected_len: int | None = None,
+               expected_head: str | None = None) -> tuple[bool, int | None, str]:
+        """验链。返回 (是否完整, 首个断链位置, 原因)。
+
+        传入 expected_len / expected_head（来自链外 anchor）时，
+        **可发现尾部截断**；不传则只能发现「改」不能发现「删」，这是固有局限。
+        """
+        if expected_len is not None and len(self._blocks) != expected_len:
+            return False, len(self._blocks), (
+                f"块数不符：外部锚点 {expected_len} 块，实际 {len(self._blocks)} 块"
+                "（疑似尾部被截断）")
         prev = GENESIS
         for i, b in enumerate(self._blocks):
             if b.get("prev") != prev:
@@ -101,6 +122,8 @@ class Chain:
             if h != b.get("hash"):
                 return False, i, f"第 {i} 块内容被改（重算 hash 不符）"
             prev = b["hash"]
+        if expected_head is not None and prev != expected_head:
+            return False, len(self._blocks) - 1, "末块哈希与外部锚点不符"
         return True, None, f"{len(self._blocks)} 块完整"
 
     def tamper_for_test(self, i: int, key: str, val: Any) -> None:
@@ -157,6 +180,17 @@ def _selftest() -> int:
     chk("键序不影响 hash",
         _canon({"a": 1, "b": 2}) == _canon({"b": 2, "a": 1}),
         (_canon({"a": 1, "b": 2}), _canon({"b": 2, "a": 1})))
+
+    # ⑤b 尾部截断：不传锚点发现不了（如实断言局限），传锚点必须发现
+    c3 = Chain()
+    for i in range(3):
+        c3.append({"n": i})
+    anc = c3.anchor()
+    c3._blocks.pop()
+    ok_n, _, _ = c3.verify()
+    chk("无锚点时尾部截断查不出（固有局限）", ok_n is True, ok_n)
+    ok_a, pos_a, msg_a = c3.verify(expected_len=anc["块数"], expected_head=anc["末块哈希"])
+    chk("有锚点时尾部截断被发现", ok_a is False and "块数不符" in msg_a, (ok_a, msg_a))
 
     # ⑥ 明确边界：本模块不验「谁写的」
     chk("不声称是签名（无签名接口）", not hasattr(Chain, "sign"))
