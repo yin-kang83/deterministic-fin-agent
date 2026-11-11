@@ -18,13 +18,15 @@
 """
 from __future__ import annotations
 
+import os
+
 import pathlib
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(HERE / "src"))
 
-ENGINE = pathlib.Path(r"E:\康正财务智能体\engine")
+ENGINE = pathlib.Path(os.environ.get("FIN_AGENT_ENGINE_DIR", "__product_engine_not_available__"))
 
 import inverse as mine  # noqa: E402
 
