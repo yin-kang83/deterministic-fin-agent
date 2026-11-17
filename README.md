@@ -54,12 +54,24 @@ scripts/   演示与造数脚本
 | 优先级解冲突 | 两张卡同时命中 → 取 priority 小者，且冲突被记录 |
 | fail-closed | 无卡适用 → 拒绝，不猜 |
 
+### 原子能力扩展（2026-11-17 回移）
+
+| 能力 | 模块 | 断言（能推翻它的是什么） |
+|---|---|---|
+| 截断递推 / 累计曲线 | `src/recurrence_ext.py` | `C_t=max(0,C_{t-1}+x_t)` 不为负；累计曲线与 `recurrence.iterate(1,…)` 逐项一致 |
+| 递延税滚动 | `src/recurrence_ext.py` | `DT_t=τ_t·G_t` 且 `DT_t=DT_{t-1}+τ_tΔG_t+(τ_t−τ_{t-1})G_{t-1}` |
+| 分币量化 | `src/tax_atoms.py` | `0.015→0.02`（HALF_UP）；`float` 抛 `TypeError` |
+| 分段累进映射 | `src/tax_atoms.py` | 示例税率表：36000→1080、500000→97080 |
+
+> 扩展来源：税务递推研究复现包（`math-gate/repro/tax-diffeq/`）；回移原因：税务算术需要"截断递推、递延滚动、分币量化、累进映射"四类通用原子。
+
 ## 运行
 
 ```bash
 # 本仓自检（纯标准库，无需安装依赖）
 python -m tests.test_integration     # 跨模块自检：6 项
 python -m tests.test_vendored        # 与产品实现的一致性检查（产品仓不存在时自动跳过并明示）
+python tests/test_atoms_tax.py       # 原子能力扩展断言：9 项
 ```
 
 ## 明确不做
